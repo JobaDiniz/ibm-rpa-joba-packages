@@ -1,0 +1,166 @@
+úidefVar --name apiKey --type String --parameter 
+defVar --name locationKey --type String --parameter 
+defVar --name methodNames --type List --innertype String --parameter 
+defVar --name methodName --type String --parameter 
+defVar --name __success --type Boolean
+defVar --name __httpResponse --type String
+defVar --name __httpStatusCode --type Numeric
+defVar --name __httpReasonPhrase --type String
+defVar --name __iconMapping --type StringDictionary --innertype String
+defVar --name forecasts --type DataTable --output 
+defVar --name forecastHeadline --type String --output 
+defVar --name __i --type Numeric
+defVar --name __mapJsonKey --type String
+defVar --name __forecastDay --type String
+defVar --name __dateText --type String
+defVar --name __forecastDate --type DateTime
+defVar --name __forecastUnit --type String
+defVar --name __forecastMinTemperature --type Numeric
+defVar --name __forecastMaxTemperature --type Numeric
+defVar --name __forecastIconId --type String
+defVar --name __forecastIconPhrase --type String
+defVar --name __forecastIcon --type String
+defVar --name query --type String --parameter 
+defVar --name locations --type DataTable --output 
+defVar --name __jsonTable --type DataTable
+defVar --name __jsonRegion --type String
+defVar --name __jsonCountry --type String
+defVar --name __locationCountry --type String
+defVar --name __locationRegion --type String
+defVar --name __locationCity --type String
+defVar --name __parentCity --type String
+defVar --name __locationRank --type Numeric
+defVar --name offset --type Numeric --value 10 --parameter  --comment "defaults to 10"
+defVar --name workingDirectory --type String --parameter 
+//************************************
+//Template for packages
+//- Create routines and this template exposes them as methods.
+//- To understand how to create packages using this template, read https://ibm.github.io/ibm-rpa-cli/#/guide/creating-packages
+//************************************
+//Set the working directory where all local .wal files are located. Always use 'workingDirectory' variable in the 'executeScript' to reference the scripts.
+//- The build process will ignore 'executeScripts' that do not reference local .wal files using 'workingDirectory'.
+//- DO NOT publish or use published scripts in the 'executeScript'. The build process will buil ONE script with all the local referenced dependencies.
+//- Also, this will ensure your dev team only has to change one variable (workingDirectory) to run the project.
+//- If you call an 'executeScript', always pass the 'workingDirectory' variable as a parameter, so you do not need to set in every script.
+//- To store the source code .wal files, use GIT. Do not use the Control Center to store the .wal files.
+setVarIf --variablename "${workingDirectory}" --value "C:\\Users\\002742631\\source\\repos\\IBM\\ibm-rpa-cli\\src\\Joba.IBM.RPA.Cli\\bin\\Debug\\net7.0" --left "${workingDirectory}" --operator "Is_Null_Or_Empty" --comment "The build process will inject the correct value for \'workingDirectory\' at runtime."
+#region debug data
+setVarIf --variablename "${apiKey}" --value "[apikey]" --left "${apiKey}" --operator "Is_Null_Or_Empty"
+setVarIf --variablename "${methodName}" --value SearchCities --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+setVarIf --variablename "${query}" --value "SÃ£o Paulo" --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+#endregion
+#region validating
+case --switches "CaseSwitchesAll"
+	when --left "${methodName}" --operator "Is_Null_Or_Empty"
+	when --left "${methodNames}" --operator "Is_Empty"
+then
+	failTest --message "The parameter \'methodName\' or \'methodNames\' is required and was not specified"
+endCase
+#endregion
+
+if --left "${methodName}" --operator "Is_Null_Or_Empty" --negate 
+	add --collection "${methodNames}" --value "${methodName}"
+endIf
+foreach --collection "${methodNames}" --variable "${methodName}" --distinct 
+	assert --message "The method \'${methodName}\' is not defined in ${rpa:scriptName} version ${rpa:scriptVersion}" --left "${rpa:scriptMetadata.Routines}" --operator "Contains" --right "${methodName}"
+	goSub --label "${methodName}"
+endFor
+beginSub --name SearchCities
+httpRequest --verb "Get" --url "http://dataservice.accuweather.com/locations/v1/cities/search?apikey=${apiKey}&offset=${offset}&q=${query}" --noproxy  __httpReasonPhrase=reasonPhrase __httpResponse=value __httpStatusCode=statusCode __success=success
+assert --message "Request failed with \"${__httpStatusCode}\": ${__httpReasonPhrase}" --left "${__success}" --operator "Is_True"
+gosubIf --label __LogHttpResponse --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+goSub --label __BuildLocations
+endSub
+beginSub --name DailyForecasts
+httpRequest --verb "Get" --url "http://dataservice.accuweather.com/forecasts/v1/daily/5day/${locationKey}?apikey=${apiKey}&metric=true" --noproxy  __httpReasonPhrase=reasonPhrase __httpResponse=value __httpStatusCode=statusCode __success=success
+assert --message "Request failed with \"${__httpStatusCode}\": ${__httpReasonPhrase}" --left "${__success}" --operator "Is_True"
+gosubIf --label __LogHttpResponse --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+goSub --label __IconMapping
+goSub --label __BuildForecasts
+endSub
+beginSub --name __LogHttpResponse
+logMessage --message "\r\n${__httpResponse}" --type "Info"
+endSub
+beginSub --name __IconMapping
+strDictAdd --key 1 --value "https://developer.accuweather.com/sites/default/files/01-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 2 --value "https://developer.accuweather.com/sites/default/files/02-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 3 --value "https://developer.accuweather.com/sites/default/files/03-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 4 --value "https://developer.accuweather.com/sites/default/files/04-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 5 --value "https://developer.accuweather.com/sites/default/files/05-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 6 --value "https://developer.accuweather.com/sites/default/files/06-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 7 --value "https://developer.accuweather.com/sites/default/files/07-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 8 --value "https://developer.accuweather.com/sites/default/files/08-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 11 --value "https://developer.accuweather.com/sites/default/files/11-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 12 --value "https://developer.accuweather.com/sites/default/files/12-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 13 --value "https://developer.accuweather.com/sites/default/files/13-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 14 --value "https://developer.accuweather.com/sites/default/files/14-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 15 --value "https://developer.accuweather.com/sites/default/files/15-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 16 --value "https://developer.accuweather.com/sites/default/files/16-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 17 --value "https://developer.accuweather.com/sites/default/files/17-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 18 --value "https://developer.accuweather.com/sites/default/files/18-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 20 --value "https://developer.accuweather.com/sites/default/files/20-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 21 --value "https://developer.accuweather.com/sites/default/files/21-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 22 --value "https://developer.accuweather.com/sites/default/files/22-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 23 --value "https://developer.accuweather.com/sites/default/files/23-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 24 --value "https://developer.accuweather.com/sites/default/files/24-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 25 --value "https://developer.accuweather.com/sites/default/files/25-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 26 --value "https://developer.accuweather.com/sites/default/files/26-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 29 --value "https://developer.accuweather.com/sites/default/files/29-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 30 --value "https://developer.accuweather.com/sites/default/files/30-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 31 --value "https://developer.accuweather.com/sites/default/files/31-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 32 --value "https://developer.accuweather.com/sites/default/files/32-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 33 --value "https://developer.accuweather.com/sites/default/files/33-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 34 --value "https://developer.accuweather.com/sites/default/files/34-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 35 --value "https://developer.accuweather.com/sites/default/files/35-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 36 --value "https://developer.accuweather.com/sites/default/files/36-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 37 --value "https://developer.accuweather.com/sites/default/files/37-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 38 --value "https://developer.accuweather.com/sites/default/files/38-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 39 --value "https://developer.accuweather.com/sites/default/files/39-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 40 --value "https://developer.accuweather.com/sites/default/files/40-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 41 --value "https://developer.accuweather.com/sites/default/files/41-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 42 --value "https://developer.accuweather.com/sites/default/files/42-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 43 --value "https://developer.accuweather.com/sites/default/files/43-s.png" --dictionary ${__iconMapping}
+strDictAdd --key 44 --value "https://developer.accuweather.com/sites/default/files/44-s.png" --dictionary ${__iconMapping}
+endSub
+beginSub --name __BuildForecasts
+addColumn --dataTable ${forecasts} --columnname Date --type DateTime
+addColumn --dataTable ${forecasts} --columnname Minimum --type Numeric
+addColumn --dataTable ${forecasts} --columnname Maximum --type Numeric
+addColumn --dataTable ${forecasts} --columnname Unit --type String
+addColumn --dataTable ${forecasts} --columnname Icon --type String
+addColumn --dataTable ${forecasts} --columnname Text --type String
+mapJson --json "${__httpResponse}" --mappings "$.Headline.Text=${forecastHeadline}"
+for --variable ${__i} --from 0 --to 5 --step 1
+	setVar --name "${__mapJsonKey}" --value "$.DailyForecasts[${__i}]" --comment "this is required because of this bug: https://jsw.ibm.com/browse/DBACLD-43741"
+	mapJson --handleError  --json "${__httpResponse}" --mappings "${__mapJsonKey}=${__forecastDay}" __success=value
+	if --left "${__success}" --operator "Is_True" --negate 
+		break
+	endIf
+	mapJson --json "${__forecastDay}" --mappings "$.Date=${__dateText}"
+	textToDateTime --culture "en-US" --text "${__dateText}" --usecustomformat  --customformat "M/d/yyyy h:mm:ss tt" __forecastDate=value
+	mapJson --json "${__forecastDay}" --mappings "$.Temperature.Minimum.Unit=${__forecastUnit}"
+	mapJson --json "${__forecastDay}" --mappings "$.Temperature.Minimum.Value=${__forecastMinTemperature}"
+	mapJson --json "${__forecastDay}" --mappings "$.Temperature.Maximum.Value=${__forecastMaxTemperature}"
+	mapJson --json "${__forecastDay}" --mappings "$.Day.Icon=${__forecastIconId}"
+	strDictGet --key "${__forecastIconId}" --dictionary ${__iconMapping} __forecastIcon=value
+	mapJson --json "${__forecastDay}" --mappings "$.Day.IconPhrase=${__forecastIconPhrase}"
+	addRow --valuesmapping "Date=${__forecastDate},Minimum=${__forecastMinTemperature},Maximum=${__forecastMaxTemperature},Icon=${__forecastIcon},Text=${__forecastIconPhrase},Unit=${__forecastUnit}" --dataTable ${forecasts}
+next
+endSub
+beginSub --name __BuildLocations
+addColumn --dataTable ${locations} --columnname Key --type String
+addColumn --dataTable ${locations} --columnname Rank --type Numeric
+addColumn --dataTable ${locations} --columnname Region --type String
+addColumn --dataTable ${locations} --columnname Country --type String
+addColumn --dataTable ${locations} --columnname City --type String
+jsonToTable --json "${__httpResponse}" --jsonPath "$" __jsonTable=value
+for --variable ${__i} --from 1 --to ${__jsonTable.Rows} --step 1
+	mapTableRow --dataTable ${__jsonTable} --row ${__i} --mappings "name=Key=${locationKey},name=EnglishName=${__locationCity},name=Region=${__jsonRegion},name=Country=${__jsonCountry},name=ParentCity=${__parentCity},name=Rank=${__locationRank}"
+	if --left "${__parentCity}" --operator "Is_Null_Or_Empty"
+		mapJson --json "${__jsonCountry}" --mappings "$.EnglishName=${__locationCountry}"
+		mapJson --json "${__jsonRegion}" --mappings "$.EnglishName=${__locationRegion}"
+		addRow --valuesmapping "Key=${locationKey},Region=${__locationRegion},Country=${__locationCountry},City=${__locationCity},Rank=${__locationRank}" --dataTable ${locations}
+	endIf
+next
+sortTable --orderby "Rank ASC" --dataTable ${locations} locations=value
+endSub*23.0.7.0

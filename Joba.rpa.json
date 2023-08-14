@@ -20,6 +20,11 @@
       "type": "package",
       "timeout": "00:05:00",
       "description": "Joba_OrangeHRM"
+    },
+    "Joba_AccuWeather": {
+      "type": "package",
+      "timeout": "00:05:00",
+      "description": "Joba_AccuWeather"
     }
   }
 }
