@@ -1,0 +1,20 @@
+{
+  "environments": {
+    "joba": {
+      "code": 5547,
+      "name": "Joba Packages",
+      "region": "US1",
+      "address": "https://us1api.wdgautomation.com/v1.0/",
+      "x-authentication": "WDG",
+      "x-deployment": "SaaS"
+    }
+  },
+  "description": "Joba Packages",
+  "robots": {
+    "Joba_System": {
+      "type": "package",
+      "timeout": "00:05:00",
+      "description": "Joba_System"
+    }
+  }
+}
