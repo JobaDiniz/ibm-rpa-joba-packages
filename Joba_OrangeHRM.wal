@@ -1,0 +1,186 @@
+î_defVar --name methodNames --type List --innertype String --parameter 
+defVar --name methodName --type String --parameter 
+defVar --name employeeName --type String --parameter 
+defVar --name leavesReport --type DataTable --output 
+defVar --name __leaveType --type String
+defVar --name leavesReportImage --type Image --output 
+defVar --name __leaveEntitlements --type Numeric
+defVar --name __leavePendingApproval --type Numeric
+defVar --name __leaveScheduled --type Numeric
+defVar --name __leaveTaken --type Numeric
+defVar --name __leaveBalance --type Numeric
+defVar --name __leaveEntitlementsText --type String
+defVar --name __leavePendingApprovalText --type String
+defVar --name __leaveScheduledText --type String
+defVar --name __leaveTakenText --type String
+defVar --name __leaveBalanceText --type String
+defVar --name __isEmployeeInvalid --type Boolean
+defVar --name __currentRow --type Numeric
+defVar --name __webTable --type DataTable
+defVar --name __loginFailedMessage --type String
+defVar --name __ownsBrowser --type Boolean
+defVar --name userName --type String --parameter 
+defVar --name userPassword --type String --parameter 
+defVar --name browser --type Browser --parameter 
+defVar --name __browserName --type String --value chrome
+defVar --name __isLoggedIn --type Boolean
+defVar --name timesheetReport --type DataTable --output 
+defVar --name timesheetStatus --type String --output 
+defVar --name url --type String --parameter 
+defVar --name workingDirectory --type String
+//************************************
+//Template for packages
+//- Create routines and this template exposes them as methods.
+//- To understand how to create packages using this template, read https://ibm.github.io/ibm-rpa-cli/#/guide/creating-packages
+//************************************
+//Set the working directory where all local .wal files are located. Always use 'workingDirectory' variable in the 'executeScript' to reference the scripts.
+//- The build process will ignore 'executeScripts' that do not reference local .wal files using 'workingDirectory'.
+//- DO NOT publish or use published scripts in the 'executeScript'. The build process will buil ONE script with all the local referenced dependencies.
+//- Also, this will ensure your dev team only has to change one variable (workingDirectory) to run the project.
+//- If you call an 'executeScript', always pass the 'workingDirectory' variable as a parameter, so you do not need to set in every script.
+//- To store the source code .wal files, use GIT. Do not use the Control Center to store the .wal files.
+setVarIf --variablename "${workingDirectory}" --value "C:\\Users\\002742631\\source\\repos\\IBM\\ibm-rpa-cli\\src\\Joba.IBM.RPA.Cli\\bin\\Debug\\net7.0" --left "${workingDirectory}" --operator "Is_Null_Or_Empty" --comment "The build process will inject the correct value for \'workingDirectory\' at runtime."
+#region debug data
+setVarIf --variablename "${methodName}" --value Timesheet --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+setVarIf --variablename "${url}" --value "http://orange.wdgautomation.com/symfony/web/index.php" --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+setVarIf --variablename "${userName}" --value sysadmin --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+setVarIf --variablename "${userPassword}" --value "tr@klwuS2OWLs#ebiB-t" --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+setVarIf --variablename "${employeeName}" --value "Garry White" --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+#endregion
+#region validating
+case --switches "CaseSwitchesAll"
+	when --left "${methodName}" --operator "Is_Null_Or_Empty"
+	when --left "${methodNames}" --operator "Is_Empty"
+then
+	failTest --message "The parameter \'methodName\' or \'methodNames\' is required and was not specified"
+endCase
+#endregion
+
+if --left "${methodName}" --operator "Is_Null_Or_Empty" --negate 
+	add --collection "${methodNames}" --value "${methodName}"
+endIf
+foreach --collection "${methodNames}" --variable "${methodName}" --distinct 
+	assert --message "The method \'${methodName}\' is not defined in ${rpa:scriptName} version ${rpa:scriptVersion}" --left "${rpa:scriptMetadata.Routines}" --operator "Contains" --right "${methodName}"
+	goSub --label "${methodName}"
+endFor
+
+//before finalizing the script, close the browser if we own it
+gosubIf --label __CloseBrowser --left "${__ownsBrowser}" --operator "Is_True"
+beginSub --name Timesheet
+goSub --label __StartBrowserAndLoginIfNeeded
+
+webNavigate --url "${url}/time/viewEmployeeTimesheet"
+webWait --timeout "00:00:05"
+webWaitElement --selector "Id" --id employee --timeout "00:00:05"
+webSet --value "${employeeName}" --selector "Id" --id employee --simulatehuman 
+webWaitElement --selector "CssSelector" --css "#employeeSelectForm > fieldset > ol > li:nth-child(1) > span" --timeout "00:00:03" __isEmployeeInvalid=value
+assert --message "Employee does not exist: ${employeeName}" --left "${__isEmployeeInvalid}" --operator "Is_True" --negate 
+
+webClick --selector "Id" --id btnView
+webWait --timeout "00:00:05"
+webSetComboBox --selectoptionby "MatchByText" --matchbytext "2020-08-31 to 2020-09-06" --selector "Id" --id startDates
+webWait --timeout "00:00:05"
+webGetTable --removehtml  --selector "CssSelector" --css "#timesheet > div > div.tableWrapper > table" timesheetReport=value
+
+webGet --selector "Id" --id timesheet_status timesheetStatus=value
+replaceText --texttoparse "${timesheetStatus}" --textpattern "Status:" timesheetStatus=value
+trimString --text "${timesheetStatus}" --trimoption "TrimStartAndEnd" timesheetStatus=value
+
+gosubIf --label __LogOutput --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+endSub
+beginSub --name __StartBrowserAndLoginIfNeeded
+setVarIf --variablename "${__ownsBrowser}" --value true --left "${browser}" --operator "Is_Null"
+if --left "${browser}" --operator "Is_Null"
+	webStart --name "${__browserName}" --type "Edge" --userprofilepreferences "AutomationOptimized" --downloadpath "C:\\Users\\002742631\\AppData\\Local\\IBM Robotic Process Automation\\downloads" browser=value
+else
+	webAttach --browser ${browser} --name "${__browserName}"
+endIf
+goSub --label Login
+assert --message "System Error: ${__loginFailedMessage}" --left "${__loginFailedMessage}" --operator "Is_Null_Or_Empty"
+endSub
+beginSub --name __CloseBrowser
+if --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+	webClose --name "${__browserName}" --leavebrowseropen 
+else
+	webClose --name "${__browserName}"
+endIf
+endSub
+beginSub --name __BuildLeavesReport
+//Since the 'webGetTable' command doesn't do a good job getting the table from this page, we need to build the table ourselves
+
+addColumn --dataTable ${leavesReport} --columnname "Leave Type" --type String
+addColumn --dataTable ${leavesReport} --columnname "Leave Entitlements" --type Numeric
+addColumn --dataTable ${leavesReport} --columnname "Leave Pending Approval" --type Numeric
+addColumn --dataTable ${leavesReport} --columnname "Leave Scheduled" --type Numeric
+addColumn --dataTable ${leavesReport} --columnname "Leave Taken" --type Numeric
+addColumn --dataTable ${leavesReport} --columnname "Leave Balance" --type Numeric
+for --variable ${__currentRow} --from 1 --to ${__webTable.Rows} --step 1
+	mapTableRow --dataTable ${__webTable} --row ${__currentRow} --mappings "number=1=${__leaveType},number=2=${__leaveEntitlementsText},number=3=${__leavePendingApprovalText},number=4=${__leaveScheduledText},number=5=${__leaveTakenText},number=6=${__leaveBalanceText}"
+	convertStringToNumber --culture "en-US" --text "${__leaveBalanceText}" --allowleadingsign  --allowdecimalpoint  __leaveBalance=value
+	convertStringToNumber --culture "en-US" --text "${__leaveEntitlementsText}" --allowleadingsign  --allowdecimalpoint  __leaveEntitlements=value
+	convertStringToNumber --culture "en-US" --text "${__leavePendingApprovalText}" --allowleadingsign  --allowdecimalpoint  __leavePendingApproval=value
+	convertStringToNumber --culture "en-US" --text "${__leaveScheduledText}" --allowleadingsign  --allowdecimalpoint  __leaveScheduled=value
+	convertStringToNumber --culture "en-US" --text "${__leaveTakenText}" --allowleadingsign  --allowdecimalpoint  __leaveTaken=value
+	trimString --text "${__leaveType}" --trimoption "TrimStartAndEnd" __leaveType=value
+	case --switches "Any"
+		when --left "${__leaveBalance}" --operator "Greater_Than" --right 0
+		when --left "${__leaveEntitlements}" --operator "Greater_Than" --right 0
+		when --left "${__leavePendingApproval}" --operator "Greater_Than" --right 0
+		when --left "${__leaveScheduled}" --operator "Greater_Than" --right 0
+		when --left "${__leaveTaken}" --operator "Greater_Than" --right 0
+	then
+		addRow --valuesmapping "Leave Type=${__leaveType},Leave Entitlements=${__leaveEntitlements},Leave Pending Approval=${__leavePendingApproval},Leave Scheduled=${__leaveScheduled},Leave Taken=${__leaveTaken},Leave Balance=${__leaveBalance}" --dataTable ${leavesReport}
+	endCase
+next
+endSub
+beginSub --name __LogOutput
+logMessage --message "Leaves Report:\r\n${leavesReport}\r\n" --type "Info"
+logMessage --message "Timesheet:\r\n${timesheetStatus}\r\n${timesheetReport}\r\n" --type "Info"
+endSub
+beginSub --name LeavesReport
+goSub --label __StartBrowserAndLoginIfNeeded
+
+webNavigate --url "${url}/leave/viewLeaveBalanceReport"
+webWait --timeout "00:00:05"
+webWaitElement --selector "Id" --id leave_balance_report_type --timeout "00:00:05"
+webSetComboBox --selectoptionby "MatchByText" --matchbytext Employee --selector "Id" --id leave_balance_report_type
+webWaitElement --selector "Id" --id leave_balance_employee_empName --timeout "00:00:05"
+webSet --value "${employeeName}" --selector "Id" --id leave_balance_employee_empName --simulatehuman 
+webClick --selector "CssSelector" --css "body > div.ac_results > ul > li > strong"
+webSetComboBox --selectoptionby "Value" --value "2022-01-01$$2022-12-31" --selector "Id" --id period --comment "2022-01-01 - 2022-12-31"
+webClick --selector "Id" --id viewBtn
+webWait --timeout "00:00:05"
+webWaitElement --selector "CssSelector" --css "#frmLeaveBalanceReport > fieldset > ol > li:nth-child(2) > span" --timeout "00:00:01" __isEmployeeInvalid=value
+assert --message "Employee does not exist: ${employeeName}" --left "${__isEmployeeInvalid}" --operator "Is_True" --negate 
+webGetTable --removehtml  --selector "CssSelector" --css "#report-results > div > table" __webTable=value
+webGetImage --selector "CssSelector" --css "#report-results > div > table" leavesReportImage=value
+
+goSub --label __BuildLeavesReport
+gosubIf --label __LogOutput --left "${rpa:runtimeEnvironment}" --operator "Equal_To" --right development
+endSub
+beginSub --name Login
+setVarIf --variablename "${__ownsBrowser}" --value true --left "${browser}" --operator "Is_Null"
+
+if --left "${browser}" --operator "Is_Null"
+	webStart --name "${__browserName}" --type "Chrome" --userprofilepreferences "AutomationOptimized" --downloadpath "C:\\Users\\002742631\\AppData\\Local\\IBM Robotic Process Automation\\downloads" browser=value
+else
+	webAttach --browser ${browser} --name "${__browserName}"
+endIf
+goSub --label __IsLoggedIn --comment "check if the user is already logged in"
+if --left "${__isLoggedIn}" --operator "Is_True" --negate 
+	webNavigate --url "${url}"
+	webWaitElement --selector "Id" --id txtUsername --timeout "00:00:05"
+	webSet --value "${userName}" --selector "Id" --id txtUsername
+	webSet --value "${userPassword}" --selector "Id" --id txtPassword
+	webClick --selector "Id" --id btnLogin
+	webWait --timeout "00:00:05"
+	
+	goSub --label __IsLoggedIn --comment "verify if the user was successfully logged in"
+	if --left "${__isLoggedIn}" --operator "Is_True" --negate 
+		webGet --selector "CssSelector" --css "#divLoginButton > span" __loginFailedMessage=value
+	endIf
+endIf
+endSub
+beginSub --name __IsLoggedIn
+webWaitElement --selector "Id" --id welcome --timeout "00:00:01" --comment "verify whether the user is already logged in" __isLoggedIn=value
+endSub*23.0.7.0

@@ -15,6 +15,11 @@
       "type": "package",
       "timeout": "00:05:00",
       "description": "Joba_System"
+    },
+    "Joba_OrangeHRM": {
+      "type": "package",
+      "timeout": "00:05:00",
+      "description": "Joba_OrangeHRM"
     }
   }
 }
