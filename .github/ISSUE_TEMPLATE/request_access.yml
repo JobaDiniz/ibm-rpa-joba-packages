@@ -1,0 +1,19 @@
+name: Request access
+description: Request access to the "Joba Packages" package source (tenant).
+title: "Request access"
+labels: ["access"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: Your name. If empty, the Github name will be used.
+    validations:
+      required: false
+  - type: input
+    id: email
+    attributes:
+      label: E-mail
+      description: Your email. If empty, the Github email will be used.
+    validations:
+      required: false
